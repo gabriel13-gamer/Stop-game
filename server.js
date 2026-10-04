@@ -186,7 +186,7 @@ setInterval(()=>{for(const c in rooms){const r=rooms[c],off=r.order.every(n=>!r.
 const MT={html:'text/html; charset=utf-8',js:'text/javascript',png:'image/png'};
 const STATIC={'/draw.html':'draw.html','/sw.js':'sw.js','/icon-192.png':'icon-192.png','/icon-512.png':'icon-512.png'};
 const server=http.createServer((q,s)=>{
-  if(q.url=='/manifest.json'){s.writeHead(200,{'Content-Type':'application/manifest+json'});return s.end(JSON.stringify({id:'/',name:'STOP',short_name:'STOP',start_url:'/',scope:'/',display:'standalone',background_color:'#1b1740',theme_color:'#1b1740',icons:[{src:'/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'}]}))}
+  if(q.url=='/manifest.json'){s.writeHead(200,{'Content-Type':'application/manifest+json'});return s.end(JSON.stringify({id:'/',name:'STOP',short_name:'STOP',start_url:'/',scope:'/',display:'standalone',background_color:'#0b0a1a',theme_color:'#0b0a1a',icons:[{src:'/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'}]}))}
   if(q.url.startsWith('/av/')){const u=U(decodeURIComponent(q.url.slice(4).split('?')[0]));if(u&&u.photo){s.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'max-age=86400'});return s.end(Buffer.from(u.photo,'base64'))}s.writeHead(404);return s.end()}
   const F=STATIC[q.url.split('?')[0]]||'index.html';
   fs.readFile(path.join(__dirname,F),(e,d)=>{s.writeHead(e?404:200,{'Content-Type':MT[F.split('.').pop()]});s.end(d)})});
@@ -196,4 +196,3 @@ server.on('upgrade',(q,sock)=>{const k=q.headers['sec-websocket-key'];if(!k)retu
   frames(sock,m=>{try{handle(sock,JSON.parse(m))}catch(e){console.error(e)}},()=>{socks.delete(sock);drop(sock)})});
 server.listen(PORT,'0.0.0.0',()=>{console.log('STOP a correr. Abre no telemóvel:');console.log('(Link público: noutro terminal corre cloudflared tunnel --url http://localhost:'+PORT+' ou npx localtunnel --port '+PORT+')');
   Object.values(os.networkInterfaces()).flat().filter(i=>i.family=='IPv4'&&!i.internal).forEach(i=>console.log(' http://'+i.address+':'+PORT))});
-
