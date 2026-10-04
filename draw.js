@@ -39,21 +39,23 @@ module.exports=function(send){
   }
   function h(s,m){
     const T=m.t;
-    if(T=='d_list')return send(s,{t:'d_list',list:Object.values(rooms).filter(r=>r.st=='lobby'&&r.pl.length<10).map(r=>({code:r.code,host:r.host,n:r.pl.length,max:10,rounds:r.rounds,time:r.time}))});
+    if(T=='d_list')return send(s,{t:'d_list',list:Object.values(rooms).filter(r=>r.st=='lobby'&&r.pl.length<r.max).map(r=>({code:r.code,host:r.host,n:r.pl.length,max:r.max,rounds:r.rounds,time:r.time}))});
     if(T=='d_join'){
       if(rooms[s.dr])return;
       const n=String(m.n||'').trim().slice(0,16)||'Jogador',code=String(m.code||'').toUpperCase();
       let j=rooms[code];
       if(code&&!j)return send(s,{t:'d_err',m:'Sala inexistente'});
       if(!j){
-        const c=Math.random().toString(36).slice(2,6).toUpperCase();
-        j=rooms[c]={code:c,host:n,st:'lobby',pl:[],rd:0,rounds:3,time:60,turns:0,di:0,ok:[],strokes:[],word:'',words:WORDS.slice()};
+        const c=Math.random().toString(36).slice(2,6).toUpperCase(),cfg=m.cfg||{};
+        const max=Math.max(2,Math.min(10,+cfg.max||4)),rounds=Math.max(1,Math.min(10,+cfg.rounds||3)),time=Math.max(20,Math.min(180,+cfg.time||60));
+        const words=Array.isArray(cfg.words)?cfg.words.map(x=>String(x).trim().slice(0,30)).filter(Boolean).slice(0,100):[];
+        j=rooms[c]={code:c,host:n,st:'lobby',pl:[],max,rd:0,rounds,time,turns:0,di:0,ok:[],strokes:[],word:'',words:words.length>=5?words:WORDS.slice()};
       }
       let p=j.pl.find(x=>x.n==n);
       if(j.st!='lobby'&&!p)return send(s,{t:'d_err',m:'A partida já começou'});
       if(p&&p.ws&&p.ws!==s)return send(s,{t:'d_err',m:'Esse nome já está a ser usado'});
       if(!p){
-        if(j.pl.length>=10)return send(s,{t:'d_err',m:'Sala cheia'});
+        if(j.pl.length>=j.max)return send(s,{t:'d_err',m:'Sala cheia'});
         p={n,s:0};j.pl.push(p);
       }
       p.ws=s;s.dr=j.code;s.dn=n;sync(j);
