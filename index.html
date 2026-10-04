@@ -1,4 +1,4 @@
-<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f1115"><title>STOP</title><link rel=manifest href=/manifest.json><meta name=apple-mobile-web-app-capable content=yes><link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Patrick+Hand&display=swap" rel=stylesheet>
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f1115"><title>STOP</title><link rel=manifest href=/manifest.json><link rel=apple-touch-icon href=/icon-192.png><meta name=apple-mobile-web-app-capable content=yes><link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Patrick+Hand&display=swap" rel=stylesheet>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polygon points='20,4 44,4 60,20 60,44 44,60 20,60 4,44 4,20' fill='%23e5383b'/><text x='32' y='44' font-size='34' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'>S</text></svg>">
 <style>
 :root{--bg:#0f1115;--c:#1a1d24;--c2:#272c36;--t:#f2f4f8;--m:#8b93a3;--p:#e5383b;--ok:#2ecc71;--wn:#f4b942;--no:#ff5c5c}
@@ -213,15 +213,16 @@ if(LS.th)document.documentElement.dataset.t=LS.th;
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.className='on';clearTimeout(tt);tt=setTimeout(()=>t.className='',4500)}
 const SRVE={'Username: 2 a 20 caracteres (letras, números, _ . -)':'Username: 2 to 20 characters (letters, numbers, _ . -)','Password: mínimo 4 caracteres':'Password: at least 4 characters','Esse username já está em uso, escolhe outro':'That username is already taken, pick another one','Credenciais inválidas':'Wrong username or password','Sessão necessária':'Session required','Avatar guardado':'Avatar saved','Precisas de uma conta para usar amigos':'You need an account to use friends','Já estás numa sala':"You're already in a room",'Mínimo de 8 categorias':'Minimum 8 categories','Escolhe pelo menos uma letra':'Pick at least one letter','Sala inexistente ou convite expirado':'Room not found or invite expired','A partida já começou':'The game has already started','Sala cheia':'Room is full','Sala só para amigos do host':"Room is for the host's friends only",'Foste expulso da sala':'You were kicked from the room','Amigo offline':'Friend is offline','Já está noutra sala':'Already in another room','Ainda não preencheste tudo!':"You haven't filled everything yet!"};
 const srv=m=>{if(UL!='en')return m;if(SRVE[m])return SRVE[m];const q=/^Convite enviado a (.+)$/.exec(m);return q?'Invite sent to '+q[1]:m};
-// demo só é usado quando a página é aberta como ficheiro (sem servidor). Com servidor, tenta sempre reconectar.
-let demo=false,connAttempts=0;
-const send=o=>{if(demo){if(o.t=='guest'||o.t=='login'||o.t=='register'){const n=o.t=='guest'?('Convidado'+(Math.random()*9000+1000|0)):(o.u||'Player');on({t:'auth',user:n,tok:'demo-'+Date.now(),guest:o.t!='login'&&o.t!='register'?true:false,av:o.av||AVD});}return}if(ws&&ws.readyState==1)ws.send(JSON.stringify(o))};
-function conn(){if(!location.host){demo=true;render();return}
-  ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host);
-  ws.onopen=()=>{connAttempts=0;LS.tok?send({t:'resume',tok:LS.tok}):render()};
+let demo=false,connTimer=null,connAttempts=0;
+const SERVER='';// ex: 'wss://o-teu-app.onrender.com'
+const send=o=>{if(demo){if(o.t=='guest'||o.t=='login'||o.t=='register'){const n=o.t=='guest'?('Convidado'+(Math.random()*9000+1000|0)):(o.u||'Player');on({t:'auth',user:n,tok:'demo-'+Date.now(),guest:o.t!='login'&&o.t!='register'?true:false,av:o.av||AVD});}else if(!['ping','rank','list','flist'].includes(o.t))toast(L('Servidor offline — abre o endereço do servidor para jogar','Server offline — open the server address to play'));return}if(ws&&ws.readyState==1)ws.send(JSON.stringify(o))};
+function conn(){if(!SERVER&&!location.host){demo=true;render();return}demo=false;clearTimeout(connTimer);connAttempts++;
+  ws=new WebSocket(SERVER||((location.protocol=='https:'?'wss://':'ws://')+location.host));
+  connTimer=setTimeout(()=>{if(ws&&ws.readyState!==1){try{ws.close()}catch{}demo=true;render()}},20000);
+  ws.onopen=()=>{clearTimeout(connTimer);connAttempts=0;demo=false;LS.tok?send({t:'resume',tok:LS.tok}):render()};
   ws.onmessage=e=>on(JSON.parse(e.data));
   ws.onerror=()=>{};
-  ws.onclose=()=>setTimeout(conn,Math.min(5000,1000+1000*connAttempts++))}
+  ws.onclose=()=>{clearTimeout(connTimer);if(demo)return;if(connAttempts>=4){demo=true;render();return}setTimeout(conn,2500)}}
 function on(m){if(m.now)off=m.now-Date.now();
   if(m.room)m.room.players.forEach(p=>p.av&&(AV[p.n]=p.av));[...(m.list||[]),...(m.friends||[])].forEach(x=>x.av&&(AV[x.u]=x.av));if(m.t=='auth'&&m.av)AV[m.user]=m.av;
   if(m.t=='auth'){user=m.user;guest=m.guest;LS.tok=m.tok;if(m.lang&&m.lang!=UL){UL=m.lang;LS.ul=UL;document.documentElement.lang=UL;if(!S){D.lang=UL;D.cats=CL().slice(0,8);D.extra=[]}}send({t:'rank'});if(!guest)send({t:'flist'});
@@ -238,7 +239,7 @@ function on(m){if(m.now)off=m.now-Date.now();
   else if(m.t=='list'){list=m.list;if(!S&&scr=='join')render()}}
 let lsk='';const sh={};
 function render(){const a=$('#app');
-  if(!user){a.innerHTML=LS.tok?'<div class=hero><div class=logo>S</div><p class=m>…</p></div>':authV();return}
+  if(!user){a.innerHTML=authV();return}
   let html,sk;
   if(S){const k=S.state+S.round+S.code;if(S.state=='round'&&k==key)return;key=k;
     if(S.state=='lobby')for(const q in sh)delete sh[q];
@@ -311,7 +312,7 @@ function mk(){if(D.cats.length<8)return toast(L('Mínimo de 8 categorias','Minim
 const link=()=>location.origin+'/#join/'+S.code;
 function cp(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();try{document.execCommand('copy');toast(L('Copiado!','Copied!'))}catch{prompt(L('Copia:','Copy:'),t)}x.remove()}
 function shr(){const t=`${L('Joga STOP comigo! Código','Play STOP with me! Code')} ${S.code} — ${link()}`;navigator.share?navigator.share({text:t}).catch(()=>{}):cp(t)}
-function otherGames(){const d=document.createElement('div');d.className='ov';d.style.pointerEvents='auto';d.innerHTML='<div class="card ctr" style="max-width:320px;margin:16px"><h2>SOON...</h2><button class="btn p">OK</button></div>';document.body.appendChild(d);d.querySelector('button').onclick=()=>d.remove();}
+function otherGames(){const d=document.createElement('div');d.className='ov';d.style.pointerEvents='auto';d.innerHTML=`<div class="card ctr" style="max-width:320px;margin:16px"><h2>${L('Mais jogos','More games')}</h2><button class="btn p" id=dg>✎ ${L('Desenha e Adivinha','Draw & Guess')}</button><button class=btn>${L('Fechar','Close')}</button></div>`;document.body.appendChild(d);d.querySelector('#dg').onclick=()=>location.href='/draw.html';d.querySelector('.btn:not(.p)').onclick=()=>d.remove()}
 const otherGamesBtn=()=>'<button class="btn s" onclick="otherGames()">More games</button>';
 const lobbyV=()=>{const me=S.host==user;return `<div class="m ctr">${L('SALA','ROOM')}</div><div class="card ctr"><div class=code>${[...S.code].map((c,i)=>`<b style="animation-delay:${i*70}ms">${c}</b>`).join('')}</div><div class=row2><button class="btn s" onclick="cp('${S.code}')">${L('Copiar código','Copy code')}</button><button class="btn s" onclick="cp(link())">${L('Copiar link','Copy link')}</button><button class="btn s p" onclick="shr()">${L('Partilhar convite','Share invite')}</button>${otherGamesBtn()}</div></div>
 <div class=m>${S.players.length}/${S.cfg.max} ${L('jogadores','players')} · ${S.cfg.cats.length} ${L('categorias','categories')} · ${S.cfg.time}s · ${S.cfg.rounds} ${L('rondas','rounds')}</div>
@@ -396,5 +397,6 @@ setInterval(()=>{if(user&&!guest&&(scr=='fr'&&!S||S&&S.state=='lobby'))send({t:'
 setInterval(()=>send({t:'ping'}),20000);
 async function wl(){try{await navigator.wakeLock.request('screen')}catch{}}
 addEventListener('pointerdown',wl,{once:true});document.addEventListener('visibilitychange',()=>{if(!document.hidden)wl()});
-render();conn();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+conn();
 </script></body></html>
