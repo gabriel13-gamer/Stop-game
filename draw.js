@@ -1,5 +1,7 @@
 // draw.js — Desenha e Adivinha. Usa o WebSocket do server.js (mensagens d_*)
+const crypto=require('crypto');
 const WORDS='gato,cao,casa,carro,sol,lua,flor,arvore,pizza,bola,livro,peixe,aviao,barco,coelho,chapeu,relogio,guitarra,bicicleta,castelo,foguetao,dinossauro,gelado,telemovel,oculos,montanha,ponte,robo,pirata,fantasma,cenoura,banana,tubarao,cavalo,coracao,estrela,nuvem,chuva,vulcao,borboleta,escada,janela,chave,martelo,tesoura,guarda-chuva,cobra,macaco,elefante,girafa'.split(',');
+const hash=s=>crypto.createHash('sha256').update(String(s||'')).digest('hex');
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const rooms={};
 
@@ -47,10 +49,11 @@ module.exports=function(send){
       if(code&&!j)return send(s,{t:'d_err',m:'Sala inexistente'});
       if(!j){
         const c=Math.random().toString(36).slice(2,6).toUpperCase(),cfg=m.cfg||{};
-        const max=Math.max(2,Math.min(10,+cfg.max||4)),mode=['public','private','friends'].includes(cfg.mode)?cfg.mode:'public',rounds=Math.max(1,Math.min(10,+cfg.rounds||3)),time=Math.max(20,Math.min(180,+cfg.time||60));
+        const max=Math.max(2,Math.min(10,+cfg.max||4)),mode=['public','private','friends'].includes(cfg.mode)?cfg.mode:'public',password=hash(cfg.password||''),rounds=Math.max(1,Math.min(10,+cfg.rounds||3)),time=Math.max(20,Math.min(180,+cfg.time||60));
         const words=Array.isArray(cfg.words)?cfg.words.map(x=>String(x).trim().slice(0,30)).filter(Boolean).slice(0,100):[];
-        j=rooms[c]={code:c,host:n,st:'lobby',pl:[],max,mode,rd:0,rounds,time,turns:0,di:0,ok:[],strokes:[],word:'',words:words.length>=5?words:WORDS.slice()};
+        j=rooms[c]={code:c,host:n,st:'lobby',pl:[],max,mode,password,rd:0,rounds,time,turns:0,di:0,ok:[],strokes:[],word:'',words:words.length>=5?words:WORDS.slice()};
       }
+      if(j.mode!='public'&&j.password&&hash(m.password||'')!==j.password)return send(s,{t:'d_err',m:'Palavra-passe incorreta'});
       let p=j.pl.find(x=>x.n==n);
       if(j.st!='lobby'&&!p)return send(s,{t:'d_err',m:'A partida já começou'});
       if(p&&p.ws&&p.ws!==s)return send(s,{t:'d_err',m:'Esse nome já está a ser usado'});
