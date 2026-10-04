@@ -49,7 +49,7 @@ module.exports=function(send){
       if(code&&!j)return send(s,{t:'d_err',m:'Sala inexistente'});
       if(!j){
         const c=Math.random().toString(36).slice(2,6).toUpperCase(),cfg=m.cfg||{};
-        const max=Math.max(2,Math.min(12,+cfg.max||4)),mode=['public','private','friends'].includes(cfg.mode)?cfg.mode:'public',rawPassword=String(cfg.password||'').trim();if(mode!='public'&&!rawPassword)return send(s,{t:'d_err',m:'As partidas privadas/amigos precisam de palavra-passe'});const password=hash(rawPassword),rounds=Math.max(1,Math.min(10,+cfg.rounds||3)),time=Math.max(20,Math.min(180,+cfg.time||60)),lang=cfg.lang==='en'?'en':'pt';
+        const max=Math.max(2,Math.min(12,+cfg.max||4)),mode=['public','private','friends'].includes(cfg.mode)?cfg.mode:'public',rawPassword=String(cfg.password||'').trim();if(mode!='public'&&!rawPassword)return send(s,{t:'d_err',m:'As partidas privadas/amigos precisam de palavra-passe'});const password=hash(rawPassword),rounds=Math.max(1,Math.min(10,+cfg.rounds||3)),time=Math.max(15,Math.min(300,+cfg.time||60)),lang=cfg.lang==='en'?'en':'pt';
         const words=Array.isArray(cfg.words)?cfg.words.map(x=>String(x).trim().slice(0,30)).filter(Boolean).slice(0,100):[];
         j=rooms[c]={code:c,host:n,st:'lobby',pl:[],max,mode,password,lang,rd:0,rounds,time,turns:0,di:0,ok:[],strokes:[],word:'',words:words.length>=5?words:WORDS.slice()};
       }
