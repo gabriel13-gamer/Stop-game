@@ -1,5 +1,5 @@
 // sw.js — instalável no Chrome + abre instantaneamente (mostra a cache e atualiza em segundo plano)
-const C='stop-v2',SHELL=['./','index.html','draw.html','manifest.json','icon-192.png','icon-512.png'];
+const C='stop-v3',SHELL=['./','index.html','draw.html','manifest.json','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(SHELL)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=C).map(x=>caches.delete(x)))).then(()=>clients.claim())));
 self.addEventListener('fetch',e=>{
