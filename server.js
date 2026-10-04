@@ -164,6 +164,7 @@ function handle(s,m){const T=m.t;if(T=='ping')return;if(String(T).startsWith('d_
   switch(T){
     case'leave':remove(r,s.u);s.rm=null;wsSend(s,{t:'left'});if(rooms[r.code])bc(r);break;
     case'kick':if(host&&r.state=='lobby'&&m.n!=r.host&&r.p[m.n]){const t=r.p[m.n].ws;remove(r,m.n);if(t){t.rm=null;wsSend(t,{t:'left',m:'Foste expulso da sala'})}bc(r)}break;
+    case'cfg':if(host&&r.state=='lobby'){const x=m.cfg||{};r.cfg.max=Math.min(12,Math.max(2,+x.max||r.cfg.max));r.cfg.rounds=Math.min(20,Math.max(1,+x.rounds||r.cfg.rounds));r.cfg.time=Math.min(300,Math.max(10,+x.time||r.cfg.time));bc(r)}break;
     case'start':if(host&&r.state=='lobby'&&r.order.length>=2)startRound(r);break;
     case'ans':if(r.state=='round'&&Date.now()<=r.endsAt+300&&r.cfg.cats.includes(m.c))me.ans[m.c]=String(m.v).slice(0,40);break;
     case'stop':if(r.state=='round'){if(!r.cfg.cats.every(c=>(me.ans[c]||'').trim()))return err(s,r.cfg.lang=='en'?"You haven't filled everything yet!":'Ainda não preencheste tudo!');me.st.s++;finish(r,'stop',s.u)}break;
