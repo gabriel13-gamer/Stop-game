@@ -214,7 +214,7 @@ let tt;function toast(m){const t=$('#toast');t.textContent=m;t.className='on';cl
 const SRVE={'Username: 2 a 20 caracteres (letras, números, _ . -)':'Username: 2 to 20 characters (letters, numbers, _ . -)','Password: mínimo 4 caracteres':'Password: at least 4 characters','Esse username já está em uso, escolhe outro':'That username is already taken, pick another one','Credenciais inválidas':'Wrong username or password','Sessão necessária':'Session required','Avatar guardado':'Avatar saved','Precisas de uma conta para usar amigos':'You need an account to use friends','Já estás numa sala':"You're already in a room",'Mínimo de 8 categorias':'Minimum 8 categories','Escolhe pelo menos uma letra':'Pick at least one letter','Sala inexistente ou convite expirado':'Room not found or invite expired','A partida já começou':'The game has already started','Sala cheia':'Room is full','Sala só para amigos do host':"Room is for the host's friends only",'Foste expulso da sala':'You were kicked from the room','Amigo offline':'Friend is offline','Já está noutra sala':'Already in another room','Ainda não preencheste tudo!':"You haven't filled everything yet!"};
 const srv=m=>{if(UL!='en')return m;if(SRVE[m])return SRVE[m];const q=/^Convite enviado a (.+)$/.exec(m);return q?'Invite sent to '+q[1]:m};
 let demo=false,connTimer=null,connAttempts=0;
-const SERVER='wss://stop-game-backend.onrender.com';// ex: 'wss://o-teu-app.onrender.com'
+const SERVER='wss://stop-game-backend-0sbi.onrender.com';// ex: 'wss://o-teu-app.onrender.com'
 const send=o=>{if(demo){if(o.t=='guest'||o.t=='login'||o.t=='register'){const n=o.t=='guest'?('Convidado'+(Math.random()*9000+1000|0)):(o.u||'Player');on({t:'auth',user:n,tok:'demo-'+Date.now(),guest:o.t!='login'&&o.t!='register'?true:false,av:o.av||AVD});}else if(!['ping','rank','list','flist'].includes(o.t))toast(L('Servidor offline — abre o endereço do servidor para jogar','Server offline — open the server address to play'));return}if(ws&&ws.readyState==1)ws.send(JSON.stringify(o))};
 function conn(){
   if(!SERVER&&(!location.host||/\.github\.io$/.test(location.hostname))){demo=true;render();setTimeout(()=>toast(L('Servidor offline — o jogo online precisa do endereço do servidor','Server offline — online play needs the server address')),600);return}
@@ -226,7 +226,7 @@ function conn(){
   ws.onopen=()=>{clearTimeout(connTimer);connAttempts=0;demo=false;LS.tok?send({t:'resume',tok:LS.tok}):render()};
   ws.onmessage=e=>{try{on(JSON.parse(e.data))}catch{}};
   ws.onerror=()=>{};
-  ws.onclose=()=>{clearTimeout(connTimer);if(demo)return;setTimeout(conn,2500)}
+  ws.onclose=()=>{clearTimeout(connTimer);demo=false;setTimeout(conn,2500)}
 }
 function on(m){if(m.now)off=m.now-Date.now();
   if(m.room)m.room.players.forEach(p=>p.av&&(AV[p.n]=p.av));[...(m.list||[]),...(m.friends||[])].forEach(x=>x.av&&(AV[x.u]=x.av));if(m.t=='auth'&&m.av)AV[m.user]=m.av;
