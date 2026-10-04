@@ -1,5 +1,5 @@
 <!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1b1740"><title>Desenha e Adivinha</title>
-<link rel="manifest" href="/manifest.json"><link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Patrick+Hand&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#1b1740;--c:#2a2560;--c2:#3a3480;--t:#f4f0ff;--m:#a9a3d6;--p:#7c5cff;--ok:#19c39a;--no:#ff6b8a;--ink:#f4f0ff;--hf:'Caveat Brush',Impact,sans-serif}
@@ -30,13 +30,13 @@ input{width:100%;padding:12px;border-radius:8px;border:2.5px solid var(--ink);ba
   <button class="btn p" onclick="join('')">Criar sala</button>
   <input id="cd" placeholder="Código da sala" maxlength="6" style="text-transform:uppercase">
   <button class="btn" onclick="join($('#cd').value)">Entrar numa sala</button>
-  <a class="m" href="/">← Voltar ao STOP</a>
+  <a class="m" href="./">← Voltar ao STOP</a>
 </div>
 
 <div id="vLobby" class="card hide">
   <div class="m ctr">SALA</div><div class="code" id="lc"></div>
   <div class="m ctr" id="lm"></div>
-  <button class="btn s" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.origin+'/draw.html#'+room.code);toast('Link copiado!')">Copiar link</button>
+  <button class="btn s" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.origin+location.pathname+'#'+room.code);toast('Link copiado!')">Copiar link</button>
   <button class="btn p" id="bs" onclick="send({t:'d_start'})">COMEÇAR (3 rondas)</button>
   <button class="btn" onclick="leave()">Sair</button>
 </div>
@@ -64,7 +64,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 function show(v){['vJoin','vLobby','vGame','vFinal'].forEach(x=>$('#'+x).classList.toggle('hide',x!=v))}
 function send(o){ws&&ws.readyState==1&&ws.send(JSON.stringify(o))}
 function conn(cb){ws=new WebSocket(SERVER||((location.protocol=='https:'?'wss://':'ws://')+location.host));
-  ws.onopen=cb;ws.onmessage=e=>on(JSON.parse(e.data));
+  ws.onerror=()=>toast('Servidor offline — abre o jogo a partir do endereço do servidor');ws.onopen=cb;ws.onmessage=e=>on(JSON.parse(e.data));
   ws.onclose=()=>{if(room)setTimeout(()=>conn(()=>send({t:'d_join',n:me,code:room.code})),1500)};}
 function join(code){me=$('#nm').value.trim();if(!me)return toast('Escreve o teu nome');localStorage.dn=me;
   const go=()=>send({t:'d_join',n:me,code:String(code||'').trim().toUpperCase()});
@@ -101,5 +101,5 @@ function guess(){const v=$('#gs').value.trim();if(!v)return;send({t:'d_g',v});$(
 $('#gs').onkeydown=e=>{if(e.key=='Enter')guess()};
 $('#nm').value=localStorage.dn||'';if(location.hash.length>1)$('#cd').value=location.hash.slice(1);
 const _on=on;on=m=>{if(m.t=='d_room')m.recv=Date.now();_on(m)};
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
