@@ -205,7 +205,7 @@ const h=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 let ws,user=null,guest=false,S=null,scr='home',off=0,rank=[],list=[],am='in',key='',pending=(location.hash.match(/join\/(\w+)/)||[])[1];
 const ALLC='Nome,Apelido,Animal,País,Cidade,Comida,Bebida,Profissão,Objeto,Marca,Filme,Série,Jogo,Personagem,Desporto,Clube,Celebridade,Planta,Corpo humano,Tecnologia,Aplicação,Veículo'.split(',');
 const LET='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-let D={max:4,mode:'public',cats:ALLC.slice(0,8),extra:[],letters:'ABCDEFGHIJLMNOPRSTV'.split(''),time:60,rounds:5,dup:5,lang:'pt'};
+let D={max:4,mode:'public',cats:ALLC.slice(0,8),extra:[],letters:'ABCDEFGHIJLMNOPRSTV'.split(''),time:60,rounds:5,dup:5,lang:'pt',password:''};
 const ALLE='Name,Surname,Animal,Country,City,Food,Drink,Job,Object,Brand,Movie,TV Show,Game,Character,Sport,Team,Celebrity,Plant,Body part,Technology,App,Vehicle'.split(','),CL=()=>D.lang=='en'?ALLE:ALLC;
 function sl_(v){D.lang=v;D.cats=CL().slice(0,8);D.extra=[];render()}
 if(UL=='en'){D.lang='en';D.cats=ALLE.slice(0,8)}document.documentElement.lang=UL;
@@ -293,8 +293,8 @@ function sul(v){const sv=['u','p','p2'].map(i=>($('#'+i)||{}).value||'');UL=v;LS
 // HOME
 const homeV=()=>`<div class=top>${av(user)}<div><b>${h(user)}</b><div class=m>${guest?L('Convidado','Guest'):L('Pronto para jogar?','Ready to play?')}</div></div></div>
 <button class=big onclick="go('create')"><span>${L('Criar partida','Create game')}</span></button><button class=big onclick="go('join')"><span>${L('Entrar numa partida','Join a game')}</span></button><button class=big onclick="go('rank')"><span>Ranking</span></button>${otherGamesBtn()}`;
-const joinV=()=>`<h2>${L('Entrar numa partida','Join a game')}</h2><div class=card><input id=jc placeholder="${L('Código (ex: ABCD12)','Code (e.g. ABCD12)')}" maxlength=6 style="text-transform:uppercase"><button class="btn p" onclick="send({t:'join',code:$('#jc').value.trim().toUpperCase()})">${L('Entrar','Join')}</button></div>
-<h3>${L('Partidas públicas','Public games')}</h3>${list.map(r=>`<div class="card row"><div><b>${h(r.host)}</b><div class=m>${r.n}/${r.max} ${L('jogadores','players')}</div></div><button class="btn p s" onclick="send({t:'join',code:'${r.code}'})">${L('Entrar','Join')}</button></div>`).join('')||'<p class=m>'+L('Sem partidas públicas.','No public games.')+'</p>'}<button class=btn onclick="send({t:'list'})">↻ ${L('Atualizar','Refresh')}</button>`;
+const joinV=()=>`<h2>${L('Entrar numa partida','Join a game')}</h2><div class=card><input id=jc placeholder="${L('Código (ex: ABCD12)','Code (e.g. ABCD12)')}" maxlength=6 style="text-transform:uppercase"><input id=jp type=password maxlength=30 placeholder="${L('Password (se a sala tiver)','Password (if required)')}"><button class="btn p" onclick="send({t:'join',code:$('#jc').value.trim().toUpperCase(),password:$('#jp').value})">${L('Entrar','Join')}</button></div>
+<h3>${L('Partidas públicas','Public games')}</h3>${list.map(r=>`<div class="card row"><div><b>${h(r.host)}</b><div class=m>${r.n}/${r.max} ${L('jogadores','players')}</div></div><button class="btn p s" onclick="send({t:'join',code:'${r.code}',password:prompt('${L('Password da sala (se tiver):','Room password (if required):')}')||''})">${L('Entrar','Join')}</button></div>`).join('')||'<p class=m>'+L('Sem partidas públicas.','No public games.')+'</p>'}<button class=btn onclick="send({t:'list'})">↻ ${L('Atualizar','Refresh')}</button>`;
 // CREATE
 const chips=(arr,cur,fn)=>`<div class=chips>${arr.map(([v,l])=>`<i class="${cur==v?'on':''}" onclick="${fn}('${v}')">${l}</i>`).join('')}</div>`;
 const sd=(k,v)=>{D[k]=isNaN(v)?v:+v;render()};
