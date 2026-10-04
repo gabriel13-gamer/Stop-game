@@ -39,6 +39,7 @@ module.exports=function(send){
   }
   function h(s,m){
     const T=m.t;
+    if(T=='d_list')return send(s,{t:'d_list',list:Object.values(rooms).filter(r=>r.st=='lobby'&&r.pl.length<10).map(r=>({code:r.code,host:r.host,n:r.pl.length,max:10,rounds:r.rounds,time:r.time}))});
     if(T=='d_join'){
       if(rooms[s.dr])return;
       const n=String(m.n||'').trim().slice(0,16)||'Jogador',code=String(m.code||'').toUpperCase();
