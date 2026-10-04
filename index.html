@@ -216,13 +216,18 @@ const srv=m=>{if(UL!='en')return m;if(SRVE[m])return SRVE[m];const q=/^Convite e
 let demo=false,connTimer=null,connAttempts=0;
 const SERVER='wss://stop-game-backend.onrender.com';// ex: 'wss://o-teu-app.onrender.com'
 const send=o=>{if(demo){if(o.t=='guest'||o.t=='login'||o.t=='register'){const n=o.t=='guest'?('Convidado'+(Math.random()*9000+1000|0)):(o.u||'Player');on({t:'auth',user:n,tok:'demo-'+Date.now(),guest:o.t!='login'&&o.t!='register'?true:false,av:o.av||AVD});}else if(!['ping','rank','list','flist'].includes(o.t))toast(L('Servidor offline — abre o endereço do servidor para jogar','Server offline — open the server address to play'));return}if(ws&&ws.readyState==1)ws.send(JSON.stringify(o))};
-function conn(){if(!SERVER&&(!location.host||/\.github\.io$/.test(location.hostname))){demo=true;render();setTimeout(()=>toast(L('Servidor offline — o jogo online precisa do endereço do servidor','Server offline — online play needs the server address')),600);return}demo=false;clearTimeout(connTimer);connAttempts++;render();setTimeout(()=>{if(!user&&!demo&&!(ws&&ws.readyState==1))toast(L('O servidor está a acordar, pode demorar até 1 minuto…','Server is waking up, it can take up to a minute…'))},4000);
-  ws=new WebSocket(SERVER||((location.protocol=='https:'?'wss://':'ws://')+location.host));
-  connTimer=setTimeout(()=>{if(ws&&ws.readyState!==1){try{ws.close()}catch{}demo=true;render()}},20000);
+function conn(){
+  if(!SERVER&&(!location.host||/\.github\.io$/.test(location.hostname))){demo=true;render();setTimeout(()=>toast(L('Servidor offline — o jogo online precisa do endereço do servidor','Server offline — online play needs the server address')),600);return}
+  demo=false;clearTimeout(connTimer);connAttempts++;render();
+  if(connAttempts==1)setTimeout(()=>{if(!user&&!demo&&!(ws&&ws.readyState==1))toast(L('A ligar ao servidor…','Connecting to server…'))},4000);
+  try{ws=new WebSocket(SERVER||((location.protocol=='https:'?'wss://':'ws://')+location.host))}
+  catch{setTimeout(conn,2500);return}
+  connTimer=setTimeout(()=>{if(ws&&ws.readyState!==1){try{ws.close()}catch{}}},90000);
   ws.onopen=()=>{clearTimeout(connTimer);connAttempts=0;demo=false;LS.tok?send({t:'resume',tok:LS.tok}):render()};
-  ws.onmessage=e=>on(JSON.parse(e.data));
+  ws.onmessage=e=>{try{on(JSON.parse(e.data))}catch{}};
   ws.onerror=()=>{};
-  ws.onclose=()=>{clearTimeout(connTimer);if(demo)return;if(connAttempts>=4){demo=true;render();return}setTimeout(conn,2500)}}
+  ws.onclose=()=>{clearTimeout(connTimer);if(demo)return;setTimeout(conn,2500)}
+}
 function on(m){if(m.now)off=m.now-Date.now();
   if(m.room)m.room.players.forEach(p=>p.av&&(AV[p.n]=p.av));[...(m.list||[]),...(m.friends||[])].forEach(x=>x.av&&(AV[x.u]=x.av));if(m.t=='auth'&&m.av)AV[m.user]=m.av;
   if(m.t=='auth'){user=m.user;guest=m.guest;LS.tok=m.tok;if(m.lang&&m.lang!=UL){UL=m.lang;LS.ul=UL;document.documentElement.lang=UL;if(!S){D.lang=UL;D.cats=CL().slice(0,8);D.extra=[]}}send({t:'rank'});if(!guest)send({t:'flist'});
