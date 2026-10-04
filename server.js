@@ -196,3 +196,4 @@ server.on('upgrade',(q,sock)=>{const k=q.headers['sec-websocket-key'];if(!k)retu
   frames(sock,m=>{try{handle(sock,JSON.parse(m))}catch(e){console.error(e)}},()=>{socks.delete(sock);drop(sock)})});
 server.listen(PORT,'0.0.0.0',()=>{console.log('STOP a correr. Abre no telemóvel:');console.log('(Link público: noutro terminal corre cloudflared tunnel --url http://localhost:'+PORT+' ou npx localtunnel --port '+PORT+')');
   Object.values(os.networkInterfaces()).flat().filter(i=>i.family=='IPv4'&&!i.internal).forEach(i=>console.log(' http://'+i.address+':'+PORT))});
+
