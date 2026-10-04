@@ -1,10 +1,16 @@
 // STOP — servidor local (Node 18+, sem dependências). Uso: node server.js
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto'),os=require('os');
 const PORT=process.env.PORT||3000,DBF=path.join(process.env.DATA_DIR||__dirname,'db.json');
-let db={users:{},tokens:{}};try{db=JSON.parse(fs.readFileSync(DBF))}catch{}
-const save=()=>fs.writeFileSync(DBF,JSON.stringify(db));
+// Carrega a base de dados. Se o ficheiro existir mas estiver corrompido, faz backup em vez de o apagar.
+let db={users:{},tokens:{}};
+try{db=JSON.parse(fs.readFileSync(DBF))}catch(e){if(e.code!='ENOENT'){try{fs.copyFileSync(DBF,DBF+'.corrupt-'+Date.now())}catch{}console.error('db.json ilegivel, backup criado')}}
+db.users=db.users||{};db.tokens=db.tokens||{};
+// Gravacao atomica: escreve num ficheiro temporario e renomeia (nunca fica a meio)
+const save=()=>{try{const t=DBF+'.tmp';fs.writeFileSync(t,JSON.stringify(db));fs.renameSync(t,DBF)}catch(e){console.error('Erro a guardar db.json:',e.message)}};
+process.on('SIGTERM',()=>{save();process.exit(0)});
+process.on('SIGINT',()=>{save();process.exit(0)});
+console.log('Base de dados:',DBF,'-',Object.keys(db.users).length,'contas');
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
-
 // Dicionário (valida automaticamente; o que não souber vai a votação)
 const D={
 animal:'macaco,gato,cao,cavalo,vaca,porco,galinha,pato,leao,tigre,elefante,girafa,zebra,urso,lobo,raposa,coelho,rato,cobra,tartaruga,sapo,peixe,tubarao,baleia,golfinho,polvo,aguia,coruja,papagaio,pardal,abelha,formiga,borboleta,aranha,camelo,canguru,cabra,carneiro,ovelha,burro,morcego,lagarto,jacare,crocodilo,hipopotamo,rinoceronte,gorila,panda,pinguim,foca,lontra,veado,javali,esquilo,mosca,lula,caranguejo,lagosta,gaivota,cisne,pombo,peru,ganso,leopardo,hiena,lince,minhoca,caracol,escorpiao,vespa,grilo,salmao,atum,sardinha,truta,enguia,marmota,mula,morsa,mosquito',
@@ -46,7 +52,6 @@ function judge(c,x,L,lg){
   if(T[k]){if(M[x]&&M[x].has(k))return'valid';if(M[x])return'invalid'}
   return'unsure';
 }
-
 // ---- WebSocket mínimo (RFC 6455)
 function wsSend(s,o){if(!s||s.destroyed)return;const b=Buffer.from(JSON.stringify(o));let h;
   if(b.length<126)h=Buffer.from([0x81,b.length]);
@@ -66,7 +71,6 @@ function frames(sock,onmsg,onclose){let buf=Buffer.alloc(0);
       if(op==9)sock.write(Buffer.from([0x8a,0]));
       else if(op==1)onmsg(p.toString());}});
   sock.on('close',onclose);sock.on('error',()=>{});}
-
 // ---- Salas
 const rooms={},guests={};
 const mkcode=()=>{let c;do c=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');while(rooms[c]);return c};
@@ -105,11 +109,9 @@ function endRound(r){const t=r.res.tot,mx=Math.max(...Object.values(t));
 function final(r){r.state='final';const mx=Math.max(...r.order.map(n=>r.p[n].score));
   r.order.forEach(n=>{const u=db.users[n.toLowerCase()];if(!u)return;const p=r.p[n];u.games++;u.points+=p.score;u.best=Math.max(u.best,p.score);if(p.score==mx)u.wins++});
   save();bc(r)}
-
 function login(s,name,guest){const tok=crypto.randomBytes(16).toString('hex');(guest?guests:db.tokens)[tok]=name;if(!guest)save();attach(s,name,tok,guest)}
 function attach(s,name,tok,guest){s.u=name;s.g=guest;wsSend(s,{t:'auth',user:name,tok,guest,now:Date.now(),av:avOf(name)});
   const r=Object.values(rooms).find(r=>r.p[name]);if(r){s.rm=r.code;r.p[name].ws=s;bc(r)}}
-
 function handle(s,m){const T=m.t;if(T=='ping')return;
   if(T=='register'){const u=String(m.u||'').trim(),p=String(m.p||'');
     if(!/^[\w.-]{2,20}$/.test(u))return err(s,'Username: 2 a 20 caracteres (letras, números, _ . -)');
@@ -180,7 +182,6 @@ function drop(s){const r=rooms[s.rm];if(!r||!r.p[s.u]||r.p[s.u].ws!==s)return;
 setInterval(()=>{for(const c in rooms){const r=rooms[c],off=r.order.every(n=>!r.p[n].ws);
   if(off){r.off=r.off||Date.now();if(Date.now()-r.off>600000)delete rooms[c]}else r.off=0;
   if(Date.now()-r.made>6*3600e3)delete rooms[c]}},60000);
-
 const ICON="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='#0b0a1a'/><polygon points='160,40 352,40 472,160 472,352 352,472 160,472 40,352 40,160' fill='#ff3b4e'/><text x='256' y='350' font-size='280' font-weight='800' text-anchor='middle' fill='#fff' font-family='Arial'>S</text></svg>";
 const server=http.createServer((q,s)=>{
   if(q.url=='/manifest.json'){s.writeHead(200,{'Content-Type':'application/manifest+json'});return s.end(JSON.stringify({name:'STOP',short_name:'STOP',start_url:'/',display:'standalone',background_color:'#0b0a1a',theme_color:'#0b0a1a',icons:[{src:'/icon.svg',sizes:'any',type:'image/svg+xml',purpose:'any'}]}))}
