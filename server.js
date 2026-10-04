@@ -1,16 +1,10 @@
 // STOP — servidor local (Node 18+, sem dependências). Uso: node server.js
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto'),os=require('os');
 const PORT=process.env.PORT||3000,DBF=path.join(process.env.DATA_DIR||__dirname,'db.json');
-// Carrega a base de dados. Se o ficheiro existir mas estiver corrompido, faz backup em vez de o apagar.
-let db={users:{},tokens:{}};
-try{db=JSON.parse(fs.readFileSync(DBF))}catch(e){if(e.code!='ENOENT'){try{fs.copyFileSync(DBF,DBF+'.corrupt-'+Date.now())}catch{}console.error('db.json ilegivel, backup criado')}}
-db.users=db.users||{};db.tokens=db.tokens||{};
-// Gravacao atomica: escreve num ficheiro temporario e renomeia (nunca fica a meio)
-const save=()=>{try{const t=DBF+'.tmp';fs.writeFileSync(t,JSON.stringify(db));fs.renameSync(t,DBF)}catch(e){console.error('Erro a guardar db.json:',e.message)}};
-process.on('SIGTERM',()=>{save();process.exit(0)});
-process.on('SIGINT',()=>{save();process.exit(0)});
-console.log('Base de dados:',DBF,'-',Object.keys(db.users).length,'contas');
+let db={users:{},tokens:{}};try{db=JSON.parse(fs.readFileSync(DBF))}catch{}
+const save=()=>fs.writeFileSync(DBF,JSON.stringify(db));
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+
 // Dicionário (valida automaticamente; o que não souber vai a votação)
 const D={
 animal:'macaco,gato,cao,cavalo,vaca,porco,galinha,pato,leao,tigre,elefante,girafa,zebra,urso,lobo,raposa,coelho,rato,cobra,tartaruga,sapo,peixe,tubarao,baleia,golfinho,polvo,aguia,coruja,papagaio,pardal,abelha,formiga,borboleta,aranha,camelo,canguru,cabra,carneiro,ovelha,burro,morcego,lagarto,jacare,crocodilo,hipopotamo,rinoceronte,gorila,panda,pinguim,foca,lontra,veado,javali,esquilo,mosca,lula,caranguejo,lagosta,gaivota,cisne,pombo,peru,ganso,leopardo,hiena,lince,minhoca,caracol,escorpiao,vespa,grilo,salmao,atum,sardinha,truta,enguia,marmota,mula,morsa,mosquito',
@@ -52,6 +46,7 @@ function judge(c,x,L,lg){
   if(T[k]){if(M[x]&&M[x].has(k))return'valid';if(M[x])return'invalid'}
   return'unsure';
 }
+
 // ---- WebSocket mínimo (RFC 6455)
 function wsSend(s,o){if(!s||s.destroyed)return;const b=Buffer.from(JSON.stringify(o));let h;
   if(b.length<126)h=Buffer.from([0x81,b.length]);
@@ -71,6 +66,10 @@ function frames(sock,onmsg,onclose){let buf=Buffer.alloc(0);
       if(op==9)sock.write(Buffer.from([0x8a,0]));
       else if(op==1)onmsg(p.toString());}});
   sock.on('close',onclose);sock.on('error',()=>{});}
+
+// ---- Desenha e Adivinha (draw.js)
+const DRAW=require('./draw')(wsSend);
+
 // ---- Salas
 const rooms={},guests={};
 const mkcode=()=>{let c;do c=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');while(rooms[c]);return c};
@@ -112,7 +111,7 @@ function final(r){r.state='final';const mx=Math.max(...r.order.map(n=>r.p[n].sco
 function login(s,name,guest){const tok=crypto.randomBytes(16).toString('hex');(guest?guests:db.tokens)[tok]=name;if(!guest)save();attach(s,name,tok,guest)}
 function attach(s,name,tok,guest){s.u=name;s.g=guest;wsSend(s,{t:'auth',user:name,tok,guest,now:Date.now(),av:avOf(name)});
   const r=Object.values(rooms).find(r=>r.p[name]);if(r){s.rm=r.code;r.p[name].ws=s;bc(r)}}
-function handle(s,m){const T=m.t;if(T=='ping')return;
+function handle(s,m){const T=m.t;if(T=='ping')return;if(String(T).startsWith('d_'))return DRAW.h(s,m);
   if(T=='register'){const u=String(m.u||'').trim(),p=String(m.p||'');
     if(!/^[\w.-]{2,20}$/.test(u))return err(s,'Username: 2 a 20 caracteres (letras, números, _ . -)');
     if(p.length<4)return err(s,'Password: mínimo 4 caracteres');
@@ -175,19 +174,22 @@ function handle(s,m){const T=m.t;if(T=='ping')return;
     case'next':if(host&&r.state=='results'){r.round>=r.cfg.rounds?final(r):startRound(r)}break;
     case'again':if(host&&r.state=='final'){r.order.forEach(n=>{r.p[n].score=0;r.p[n].st={v:0,i:0,s:0,w:0,b:0}});r.round=0;r.used=[];r.res=null;r.state='lobby';bc(r)}break;
   }}
-function drop(s){const r=rooms[s.rm];if(!r||!r.p[s.u]||r.p[s.u].ws!==s)return;
+function drop(s){DRAW.leave(s);const r=rooms[s.rm];if(!r||!r.p[s.u]||r.p[s.u].ws!==s)return;
   r.p[s.u].ws=null;
   if(r.state=='lobby'&&r.host==s.u){const n=r.order.find(x=>r.p[x].ws);if(n)r.host=n}
   bc(r)}
 setInterval(()=>{for(const c in rooms){const r=rooms[c],off=r.order.every(n=>!r.p[n].ws);
   if(off){r.off=r.off||Date.now();if(Date.now()-r.off>600000)delete rooms[c]}else r.off=0;
   if(Date.now()-r.made>6*3600e3)delete rooms[c]}},60000);
-const ICON="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='#0b0a1a'/><polygon points='160,40 352,40 472,160 472,352 352,472 160,472 40,352 40,160' fill='#ff3b4e'/><text x='256' y='350' font-size='280' font-weight='800' text-anchor='middle' fill='#fff' font-family='Arial'>S</text></svg>";
+
+// ---- HTTP (ficheiros estáticos + PWA)
+const MT={html:'text/html; charset=utf-8',js:'text/javascript',png:'image/png'};
+const STATIC={'/draw.html':'draw.html','/sw.js':'sw.js','/icon-192.png':'icon-192.png','/icon-512.png':'icon-512.png'};
 const server=http.createServer((q,s)=>{
-  if(q.url=='/manifest.json'){s.writeHead(200,{'Content-Type':'application/manifest+json'});return s.end(JSON.stringify({name:'STOP',short_name:'STOP',start_url:'/',display:'standalone',background_color:'#0b0a1a',theme_color:'#0b0a1a',icons:[{src:'/icon.svg',sizes:'any',type:'image/svg+xml',purpose:'any'}]}))}
+  if(q.url=='/manifest.json'){s.writeHead(200,{'Content-Type':'application/manifest+json'});return s.end(JSON.stringify({id:'/',name:'STOP',short_name:'STOP',start_url:'/',scope:'/',display:'standalone',background_color:'#1b1740',theme_color:'#1b1740',icons:[{src:'/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'}]}))}
   if(q.url.startsWith('/av/')){const u=U(decodeURIComponent(q.url.slice(4).split('?')[0]));if(u&&u.photo){s.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'max-age=86400'});return s.end(Buffer.from(u.photo,'base64'))}s.writeHead(404);return s.end()}
-  if(q.url=='/icon.svg'){s.writeHead(200,{'Content-Type':'image/svg+xml'});return s.end(ICON)}
-  fs.readFile(path.join(__dirname,'index.html'),(e,d)=>{s.writeHead(e?500:200,{'Content-Type':'text/html; charset=utf-8'});s.end(d)})});
+  const F=STATIC[q.url.split('?')[0]]||'index.html';
+  fs.readFile(path.join(__dirname,F),(e,d)=>{s.writeHead(e?404:200,{'Content-Type':MT[F.split('.').pop()]});s.end(d)})});
 server.on('upgrade',(q,sock)=>{const k=q.headers['sec-websocket-key'];if(!k)return sock.destroy();
   sock.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+crypto.createHash('sha1').update(k+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')+'\r\n\r\n');
   sock.setNoDelay(true);socks.add(sock);
