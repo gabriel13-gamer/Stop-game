@@ -1,0 +1,105 @@
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1b1740"><title>Desenha e Adivinha</title>
+<link rel="manifest" href="/manifest.json"><link rel="apple-touch-icon" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1b1740;--c:#2a2560;--c2:#3a3480;--t:#f4f0ff;--m:#a9a3d6;--p:#7c5cff;--ok:#19c39a;--no:#ff6b8a;--ink:#f4f0ff;--hf:'Caveat Brush',Impact,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;color:var(--t);font:19px 'Patrick Hand','Segoe Print',system-ui,sans-serif;background:linear-gradient(90deg,transparent 46px,#19c39a66 46px 48px,transparent 48px),repeating-linear-gradient(transparent 0 29px,#8f7bff33 29px 30px),var(--bg)}
+#app{max-width:520px;margin:auto;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
+h1,h2,.btn{font-family:var(--hf);font-weight:400}h1{font-size:46px;margin:6px 0;text-align:center}h2{font-size:30px;margin:6px 0}
+.card{background:var(--c);border:2.5px solid var(--ink);box-shadow:3px 4px 0 var(--ink);border-radius:5px 20px 6px 22px/20px 5px 22px 6px;padding:14px;margin:10px 0}
+.btn{width:100%;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:12px;padding:12px;font-size:22px;background:var(--c2);color:var(--t);margin:6px 0}
+.btn:active{transform:translate(3px,3px);box-shadow:none}.btn.p{background:var(--p)}.btn:disabled{opacity:.4}
+input{width:100%;padding:12px;border-radius:8px;border:2.5px solid var(--ink);background:var(--bg);color:var(--t);font:inherit;margin:5px 0;outline:0}
+.m{color:var(--m);font-size:15px}.ctr{text-align:center}.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hide{display:none!important}
+.code{font:44px var(--hf);letter-spacing:8px;text-align:center}
+.pl{display:flex;gap:6px;overflow-x:auto;padding:4px 0}.pl i{font-style:normal;flex:none;padding:6px 12px;border:2px solid var(--ink);border-radius:12px 6px 12px 7px;background:var(--c)}.pl i.dr{background:var(--p)}.pl i.ok{background:var(--ok);color:#06241c}.pl i.off{opacity:.45}
+#cv{width:100%;aspect-ratio:1;background:#fffdf5;border:2.5px solid var(--ink);border-radius:8px;touch-action:none;display:block}
+.tools{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center}.tools b{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--ink)}.tools b.on{outline:3px solid var(--p);transform:scale(1.12)}
+.tools .btn{width:auto;padding:6px 12px;font-size:18px;margin:0}
+.hint{font:34px var(--hf);letter-spacing:4px;text-align:center}
+#chat{height:130px;overflow:auto;background:var(--bg);border:2px dashed var(--m);border-radius:8px;padding:8px;font-size:17px}
+#tm{font:30px var(--hf);color:var(--ok)}#tm.w{color:var(--no)}
+#toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#000d;color:#fff;padding:10px 16px;border-radius:14px;z-index:9;opacity:0;transition:.3s;pointer-events:none;max-width:90vw;text-align:center}#toast.on{opacity:1}
+</style></head><body><div id="app">
+<h1>✎ Desenha e Adivinha</h1>
+
+<div id="vJoin" class="card">
+  <input id="nm" placeholder="O teu nome" maxlength="16" autocomplete="off">
+  <button class="btn p" onclick="join('')">Criar sala</button>
+  <input id="cd" placeholder="Código da sala" maxlength="6" style="text-transform:uppercase">
+  <button class="btn" onclick="join($('#cd').value)">Entrar numa sala</button>
+  <a class="m" href="/">← Voltar ao STOP</a>
+</div>
+
+<div id="vLobby" class="card hide">
+  <div class="m ctr">SALA</div><div class="code" id="lc"></div>
+  <div class="m ctr" id="lm"></div>
+  <button class="btn s" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.origin+'/draw.html#'+room.code);toast('Link copiado!')">Copiar link</button>
+  <button class="btn p" id="bs" onclick="send({t:'d_start'})">COMEÇAR (3 rondas)</button>
+  <button class="btn" onclick="leave()">Sair</button>
+</div>
+
+<div id="vGame" class="hide">
+  <div class="row"><span id="rd" class="m"></span><span id="tm"></span></div>
+  <div class="pl" id="pl"></div>
+  <div class="hint" id="ht"></div>
+  <canvas id="cv" width="800" height="800"></canvas>
+  <div class="tools" id="tools"></div>
+  <div id="chat"></div>
+  <div class="row"><input id="gs" placeholder="O teu palpite…" autocomplete="off" autocapitalize="off"><button class="btn p" style="width:auto" onclick="guess()">OK</button></div>
+</div>
+
+<div id="vFinal" class="card hide ctr"><h2>Fim do jogo!</h2><div id="fl"></div>
+  <button class="btn p" id="ba" onclick="send({t:'d_again'})">Jogar novamente</button><button class="btn" onclick="leave()">Sair</button></div>
+</div><div id="toast"></div>
+<script>
+const $=q=>document.querySelector(q),SERVER='';/* ex: 'wss://o-teu-app.onrender.com' se o servidor estiver noutro sítio */
+const COL=['#1d1b1a','#e5383b','#ff9f1c','#ffd23f','#19c39a','#2d7dd2','#7c5cff','#fffdf5'],SZ=[6,14];
+let ws,room=null,me='',word='',ci=0,sz=0,drawing=false,last=null,tt;
+const cv=$('#cv'),g=cv.getContext('2d');g.lineCap='round';g.lineJoin='round';
+function toast(m){const t=$('#toast');t.textContent=m;t.className='on';clearTimeout(tt);tt=setTimeout(()=>t.className='',3500)}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function show(v){['vJoin','vLobby','vGame','vFinal'].forEach(x=>$('#'+x).classList.toggle('hide',x!=v))}
+function send(o){ws&&ws.readyState==1&&ws.send(JSON.stringify(o))}
+function conn(cb){ws=new WebSocket(SERVER||((location.protocol=='https:'?'wss://':'ws://')+location.host));
+  ws.onopen=cb;ws.onmessage=e=>on(JSON.parse(e.data));
+  ws.onclose=()=>{if(room)setTimeout(()=>conn(()=>send({t:'d_join',n:me,code:room.code})),1500)};}
+function join(code){me=$('#nm').value.trim();if(!me)return toast('Escreve o teu nome');localStorage.dn=me;
+  const go=()=>send({t:'d_join',n:me,code:String(code||'').trim().toUpperCase()});
+  ws&&ws.readyState==1?go():conn(go)}
+function leave(){send({t:'d_leave'});room=null;location.hash='';show('vJoin')}
+const iAmDrawer=()=>room&&room.drawer==me&&room.st=='draw';
+function on(m){
+  if(m.t=='d_err')toast(m.m);
+  else if(m.t=='d_room'){room=m;history.replaceState(0,'','#'+m.code);view()}
+  else if(m.t=='d_word'){word=m.w;view()}
+  else if(m.t=='d_clear')g.clearRect(0,0,800,800);
+  else if(m.t=='d_s')seg(...m.s);
+  else if(m.t=='d_chat'){const c=$('#chat');c.innerHTML+=m.ok?`<div style="color:var(--ok)">✓ <b>${esc(m.n)}</b> acertou!</div>`:`<div><b>${esc(m.n)}:</b> ${esc(m.v)}</div>`;c.scrollTop=1e9}}
+function view(){const r=room;
+  if(r.st=='lobby'){show('vLobby');$('#lc').textContent=r.code;$('#lm').textContent=r.players.map(p=>p.n).join(' · ');
+    $('#bs').classList.toggle('hide',r.host!=me);$('#bs').disabled=r.players.length<2;return}
+  if(r.st=='final'){show('vFinal');$('#fl').innerHTML=r.players.slice().sort((a,b)=>b.s-a.s).map((p,i)=>`<div class="row"><span>${i+1}º ${esc(p.n)}</span><b>${p.s} pts</b></div>`).join('');$('#ba').classList.toggle('hide',r.host!=me);return}
+  show('vGame');$('#rd').textContent=`Ronda ${r.round}/${r.rounds} · ${r.drawer==me?'Estás a desenhar!':esc(r.drawer)+' está a desenhar'}`;
+  $('#pl').innerHTML=r.players.map(p=>`<i class="${p.n==r.drawer?'dr':p.ok?'ok':''} ${p.on?'':'off'}">${p.n==r.drawer?'✎ ':p.ok?'✓ ':''}${esc(p.n)} ${p.s}</i>`).join('');
+  const d=iAmDrawer();
+  $('#ht').textContent=r.st=='between'?'Era: '+r.hint:d?word.toUpperCase():r.hint;
+  $('#tools').classList.toggle('hide',!d);$('#gs').parentElement.classList.toggle('hide',d||r.st!='draw');
+  if(d)tools()}
+function tools(){$('#tools').innerHTML=COL.map((c,i)=>`<b style="background:${c}" class="${ci==i?'on':''}" onclick="ci=${i};tools()"></b>`).join('')+`<button class="btn" onclick="sz=1-sz;tools()">${sz?'Grosso':'Fino'}</button><button class="btn" onclick="send({t:'d_clear'})">Limpar</button>`}
+setInterval(()=>{const t=$('#tm');if(!room||room.st!='draw'){t.textContent='';return}
+  const s=Math.max(0,Math.ceil((room.end-room.now-(Date.now()-(room.recv||Date.now())))/1000));t.textContent=s;t.className=s<=10?'w':''},300);
+function seg(x1,y1,x2,y2,c,s){g.strokeStyle=COL[c];g.lineWidth=SZ[s]*(c==7?3:1);g.beginPath();g.moveTo(x1*800,y1*800);g.lineTo(x2*800,y2*800);g.stroke()}
+const pt=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)/b.width,(e.clientY-b.top)/b.height]};
+cv.onpointerdown=e=>{if(!iAmDrawer())return;drawing=true;last=pt(e);cv.setPointerCapture(e.pointerId);put(last,last)};
+cv.onpointermove=e=>{if(!drawing)return;const p=pt(e);put(last,p);last=p};
+cv.onpointerup=cv.onpointercancel=()=>drawing=false;
+function put(a,b){const s=[+a[0].toFixed(4),+a[1].toFixed(4),+b[0].toFixed(4),+b[1].toFixed(4),ci,sz];seg(...s);send({t:'d_s',s})}
+function guess(){const v=$('#gs').value.trim();if(!v)return;send({t:'d_g',v});$('#gs').value=''}
+$('#gs').onkeydown=e=>{if(e.key=='Enter')guess()};
+$('#nm').value=localStorage.dn||'';if(location.hash.length>1)$('#cd').value=location.hash.slice(1);
+const _on=on;on=m=>{if(m.t=='d_room')m.recv=Date.now();_on(m)};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script></body></html>
