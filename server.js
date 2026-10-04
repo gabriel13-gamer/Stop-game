@@ -183,13 +183,18 @@ setInterval(()=>{for(const c in rooms){const r=rooms[c],off=r.order.every(n=>!r.
   if(Date.now()-r.made>6*3600e3)delete rooms[c]}},60000);
 
 // ---- HTTP (ficheiros estáticos + PWA)
+const zlib=require('zlib'),CACHE={};
 const MT={html:'text/html; charset=utf-8',js:'text/javascript',png:'image/png'};
 const STATIC={'/draw.html':'draw.html','/sw.js':'sw.js','/icon-192.png':'icon-192.png','/icon-512.png':'icon-512.png'};
 const server=http.createServer((q,s)=>{
   if(q.url=='/manifest.json'){s.writeHead(200,{'Content-Type':'application/manifest+json'});return s.end(JSON.stringify({id:'/',name:'STOP',short_name:'STOP',start_url:'/',scope:'/',display:'standalone',background_color:'#0b0a1a',theme_color:'#0b0a1a',icons:[{src:'/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any'},{src:'/icon-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'}]}))}
   if(q.url.startsWith('/av/')){const u=U(decodeURIComponent(q.url.slice(4).split('?')[0]));if(u&&u.photo){s.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'max-age=86400'});return s.end(Buffer.from(u.photo,'base64'))}s.writeHead(404);return s.end()}
+  if(q.url=='/ping'){s.writeHead(200);return s.end('ok')}
   const F=STATIC[q.url.split('?')[0]]||'index.html';
-  fs.readFile(path.join(__dirname,F),(e,d)=>{s.writeHead(e?404:200,{'Content-Type':MT[F.split('.').pop()]});s.end(d)})});
+  if(!CACHE[F])try{const b=fs.readFileSync(path.join(__dirname,F));CACHE[F]={b,z:zlib.gzipSync(b)}}catch{}
+  const c=CACHE[F];if(!c){s.writeHead(404);return s.end()}
+  const gz=/gzip/.test(String(q.headers['accept-encoding']||''));
+  s.writeHead(200,{'Content-Type':MT[F.split('.').pop()],'Cache-Control':'no-cache','Vary':'Accept-Encoding',...(gz?{'Content-Encoding':'gzip'}:{})});s.end(gz?c.z:c.b)});
 server.on('upgrade',(q,sock)=>{const k=q.headers['sec-websocket-key'];if(!k)return sock.destroy();
   sock.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+crypto.createHash('sha1').update(k+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')+'\r\n\r\n');
   sock.setNoDelay(true);socks.add(sock);
