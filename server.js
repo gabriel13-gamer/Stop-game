@@ -149,7 +149,7 @@ function handle(s,m){const T=m.t;if(T=='ping')return;if(String(T).startsWith('d_
     if(cats.length<8)return err(s,'Mínimo de 8 categorias');
     if(!letters.length)return err(s,'Escolhe pelo menos uma letra');
     const cfg={max:Math.min(12,Math.max(2,+c.max||4)),mode:['private','friends'].includes(c.mode)?c.mode:'public',cats,letters,
-      time:Math.min(300,Math.max(10,+c.time||60)),rounds:Math.min(20,Math.max(1,+c.rounds||5)),dup:c.dup==0?0:5,lang:c.lang=='en'?'en':'pt'};
+      time:Math.min(300,Math.max(10,+c.time||60)),rounds:Math.min(20,Math.max(1,+c.rounds||5)),dup:c.dup==0?0:5,lang:c.lang=='en'?'en':'pt',passHash:(c.mode=='private'&&String(c.password||'').trim())?crypto.createHash('sha256').update(String(c.password).trim()).digest('hex'):''};
     const code=mkcode(),nr={code,host:s.u,cfg,state:'lobby',round:0,used:[],order:[],p:{},made:Date.now()};
     rooms[code]=nr;add(nr,s);return bc(nr)}
   if(T=='join'){if(r)return err(s,'Já estás numa sala');const j=rooms[String(m.code).toUpperCase()];
@@ -157,6 +157,7 @@ function handle(s,m){const T=m.t;if(T=='ping')return;if(String(T).startsWith('d_
     if(j.state!='lobby')return err(s,'A partida já começou');
     if(j.order.length>=j.cfg.max)return err(s,'Sala cheia');
     if(j.cfg.mode=='friends'&&j.host!=s.u&&!((U(j.host)||{}).f||[]).includes(s.u))return err(s,'Sala só para amigos do host');
+    if(j.cfg.mode=='private'&&j.cfg.passHash){const ph=crypto.createHash('sha256').update(String(m.password||'').trim()).digest('hex');if(ph!==j.cfg.passHash)return err(s,'Password da sala incorreta')}
     add(j,s);return bc(j)}
   if(!r||!me)return;
   const host=s.u==r.host;
