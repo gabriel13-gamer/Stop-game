@@ -38,6 +38,8 @@ textarea{width:100%;min-height:110px;padding:12px;border-radius:8px;border:2.5px
   <div class="card">
     <label class="m">Jogadores</label>
     <div class="tools" id="dp"></div>
+    <label class="m">Modo</label>
+    <div class="tools" id="dmp"></div>
     <label class="m">Rondas</label><div class="tools" id="drp"></div>
     <label class="m">Tempo por desenho</label><div class="tools" id="dtp"></div>
     <input id="dcTimeCreate" type="number" min="20" max="180" value="60" placeholder="Personalizado (20–180)">
@@ -80,9 +82,9 @@ const cv=$('#cv'),g=cv.getContext('2d');g.lineCap='round';g.lineJoin='round';
 function toast(m){const t=$('#toast');t.textContent=m;t.className='on';clearTimeout(tt);tt=setTimeout(()=>t.className='',3500)}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function show(v){['vJoin','vCreate','vLobby','vGame','vFinal'].forEach(x=>$('#'+x).classList.toggle('hide',x!=v))}
-let dmax=4,drounds=3,dtime=60;
+let dmax=4,dmode='public',drounds=3,dtime=60;
 function showCreate(){show('vCreate');$('#dp').innerHTML=[2,3,4,5,6,7,8,10].map(n=>`<button class="btn ${dmax==n?'p':''}" style="width:auto" onclick="dmax=${n};showCreate()">${n}</button>`).join('');$('#drp').innerHTML=[1,2,3,5,8,10].map(n=>`<button class="btn ${drounds==n?'p':''}" style="width:auto" onclick="drounds=${n};showCreate()">${n}</button>`).join('');$('#dtp').innerHTML=[20,30,45,60,90,120,180].map(n=>`<button class="btn ${dtime==n?'p':''}" style="width:auto" onclick="dtime=${n};$('#dcTimeCreate').value=n;showCreate()">${n}s</button>`).join('');$('#dcTimeCreate').value=dtime}
-function createDraw(){me=$('#nm').value.trim();if(!me)return toast('Escreve o teu nome');localStorage.dn=me;const rounds=drounds,time=Math.max(20,Math.min(180,+$('#dcTimeCreate').value||dtime||60)),words=$('#dcWords').value.split(/\n/).map(x=>x.trim()).filter(Boolean);const go=()=>send({t:'d_join',n:me,code:'',create:1,cfg:{max:dmax,rounds,time,words}});ws&&ws.readyState==1?go():conn(go)}
+function createDraw(){me=$('#nm').value.trim();if(!me)return toast('Escreve o teu nome');localStorage.dn=me;const rounds=drounds,time=Math.max(20,Math.min(180,+$('#dcTimeCreate').value||dtime||60)),words=$('#dcWords').value.split(/\n/).map(x=>x.trim()).filter(Boolean);const go=()=>send({t:'d_join',n:me,code:'',create:1,cfg:{max:dmax,mode:dmode,rounds,time,words}});ws&&ws.readyState==1?go():conn(go)}
 function refreshRooms(){send({t:'d_list'})}
 function renderRooms(a){const e=$('#roomsList');e.innerHTML=a.length?a.map(r=>`<div class="card row"><div><b>${esc(r.host)}</b><div class="m">${r.n}/${r.max} jogadores · ${r.rounds} rondas · ${r.time}s</div><div class="m">Código: <b>${r.code}</b></div></div><button class="btn p" style="width:auto" onclick="join('${r.code}')">Entrar</button></div>`).join(''):'<p class="m ctr">Não há partidas públicas neste momento.</p>'}
 function saveCfg(){const rounds=Math.max(1,Math.min(10,+$('#dr').value||3)),time=Math.max(20,Math.min(180,+$('#dt').value||60)),words=$('#dw').value.split(/\n/).map(x=>x.trim()).filter(Boolean);send({t:'d_cfg',cfg:{rounds,time,words}});toast('Definições guardadas!')}
