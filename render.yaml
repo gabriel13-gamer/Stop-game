@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: stop-game-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /ping
+    autoDeploy: true
