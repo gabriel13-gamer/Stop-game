@@ -27,10 +27,27 @@ textarea{width:100%;min-height:110px;padding:12px;border-radius:8px;border:2.5px
 
 <div id="vJoin" class="card">
   <input id="nm" placeholder="O teu nome" maxlength="16" autocomplete="off">
-  <button class="btn p" onclick="join('')">Criar sala</button>
+  <button class="btn p" onclick="showCreate()">Criar sala</button>
   <input id="cd" placeholder="Código da sala" maxlength="6" style="text-transform:uppercase">
   <button class="btn" onclick="join($('#cd').value)">Entrar numa sala</button><h2>Partidas disponíveis</h2><div id="roomsList"><p class="m ctr">A procurar partidas…</p></div><button class="btn" onclick="refreshRooms()">↻ Atualizar partidas</button>
   <a class="m" href="./">← Voltar ao STOP</a>
+</div>
+
+<div id="vCreate" class="card hide">
+  <h2>Criar partida</h2>
+  <div class="card">
+    <label class="m">Jogadores</label>
+    <div class="tools" id="dp"></div>
+    <label class="m">Rondas (1–10)</label><input id="dcRounds" type="number" min="1" max="10" value="3">
+    <label class="m">Tempo por desenho (20–180s)</label><input id="dcTime" type="number" min="20" max="180" value="60">
+  </div>
+  <div class="card">
+    <label class="m">Palavras personalizadas</label>
+    <textarea id="dcWords" maxlength="3000" placeholder="dinossauro&#10;futebol&#10;robô"></textarea>
+    <p class="m">Usa pelo menos 5 palavras para substituir as normais.</p>
+  </div>
+  <button class="btn p" onclick="createDraw()">Criar sala</button>
+  <button class="btn" onclick="show('vJoin')">Voltar</button>
 </div>
 
 <div id="vLobby" class="card hide">
@@ -61,7 +78,10 @@ let ws,room=null,me='',word='',ci=0,sz=0,drawing=false,last=null,tt;
 const cv=$('#cv'),g=cv.getContext('2d');g.lineCap='round';g.lineJoin='round';
 function toast(m){const t=$('#toast');t.textContent=m;t.className='on';clearTimeout(tt);tt=setTimeout(()=>t.className='',3500)}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function show(v){['vJoin','vLobby','vGame','vFinal'].forEach(x=>$('#'+x).classList.toggle('hide',x!=v))}
+function show(v){['vJoin','vCreate','vLobby','vGame','vFinal'].forEach(x=>$('#'+x).classList.toggle('hide',x!=v))}
+let dmax=4;
+function showCreate(){show('vCreate');$('#dp').innerHTML=[2,3,4,5,6,7,8,10].map(n=>`<button class="btn ${dmax==n?'p':''}" style="width:auto" onclick="dmax=${n};showCreate()">${n}</button>`).join('')}
+function createDraw(){me=$('#nm').value.trim();if(!me)return toast('Escreve o teu nome');localStorage.dn=me;const rounds=Math.max(1,Math.min(10,+$('#dcRounds').value||3)),time=Math.max(20,Math.min(180,+$('#dcTime').value||60)),words=$('#dcWords').value.split(/\n/).map(x=>x.trim()).filter(Boolean);const go=()=>send({t:'d_join',n:me,code:'',create:1,cfg:{max:dmax,rounds,time,words}});ws&&ws.readyState==1?go():conn(go)}
 function refreshRooms(){send({t:'d_list'})}
 function renderRooms(a){const e=$('#roomsList');e.innerHTML=a.length?a.map(r=>`<div class="card row"><div><b>${esc(r.host)}</b><div class="m">${r.n}/${r.max} jogadores · ${r.rounds} rondas · ${r.time}s</div><div class="m">Código: <b>${r.code}</b></div></div><button class="btn p" style="width:auto" onclick="join('${r.code}')">Entrar</button></div>`).join(''):'<p class="m ctr">Não há partidas públicas neste momento.</p>'}
 function saveCfg(){const rounds=Math.max(1,Math.min(10,+$('#dr').value||3)),time=Math.max(20,Math.min(180,+$('#dt').value||60)),words=$('#dw').value.split(/\n/).map(x=>x.trim()).filter(Boolean);send({t:'d_cfg',cfg:{rounds,time,words}});toast('Definições guardadas!')}
