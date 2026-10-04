@@ -5,7 +5,7 @@ const rooms={};
 
 module.exports=function(send){
   const bc=(r,o)=>r.pl.forEach(p=>p.ws&&send(p.ws,o));
-  const pub=r=>({t:'d_room',code:r.code,host:r.host,st:r.st,round:r.rd,rounds:r.rounds,end:r.end,now:Date.now(),time:r.time,
+  const pub=r=>({t:'d_room',code:r.code,host:r.host,st:r.st,round:r.rd,rounds:r.rounds,end:r.end,now:Date.now(),time:r.time,words:r.words?.length||0,
     drawer:r.st=='lobby'||r.st=='final'?null:r.pl[r.di].n,
     hint:r.st=='draw'?r.word.replace(/[^-]/g,'_ '):r.st=='between'?r.word:'',
     players:r.pl.map(p=>({n:p.n,s:p.s,ok:r.ok.includes(p.n),on:!!p.ws}))});
@@ -15,7 +15,7 @@ module.exports=function(send){
     clearTimeout(r.tm);
     if(r.turns>=r.rounds*r.pl.length){r.st='final';return sync(r)}
     r.di=r.turns%r.pl.length;r.turns++;r.rd=Math.ceil(r.turns/r.pl.length);
-    r.word=WORDS[Math.random()*WORDS.length|0];r.st='draw';r.ok=[];r.strokes=[];
+    const pool=r.words&&r.words.length?r.words:WORDS;r.word=pool[Math.random()*pool.length|0];r.st='draw';r.ok=[];r.strokes=[];
     r.end=Date.now()+r.time*1000;r.tm=setTimeout(()=>over(r),r.time*1000);
     bc(r,{t:'d_clear'});sync(r);
     const d=r.pl[r.di];d.ws&&send(d.ws,{t:'d_word',w:r.word});
@@ -46,7 +46,7 @@ module.exports=function(send){
       if(code&&!j)return send(s,{t:'d_err',m:'Sala inexistente'});
       if(!j){
         const c=Math.random().toString(36).slice(2,6).toUpperCase();
-        j=rooms[c]={code:c,host:n,st:'lobby',pl:[],rd:0,rounds:3,time:60,turns:0,di:0,ok:[],strokes:[],word:''};
+        j=rooms[c]={code:c,host:n,st:'lobby',pl:[],rd:0,rounds:3,time:60,turns:0,di:0,ok:[],strokes:[],word:'',words:WORDS.slice()};
       }
       let p=j.pl.find(x=>x.n==n);
       if(j.st!='lobby'&&!p)return send(s,{t:'d_err',m:'A partida já começou'});
@@ -63,6 +63,7 @@ module.exports=function(send){
     const r=rooms[s.dr];if(!r)return;
     const me=r.pl.find(x=>x.n==s.dn),dr=r.pl[r.di];
     switch(T){
+      case'd_cfg':if(r.host==s.dn&&r.st=='lobby'){const c=m.cfg||{};r.rounds=Math.max(1,Math.min(10,+c.rounds||3));r.time=Math.max(20,Math.min(180,+c.time||60));const w=Array.isArray(c.words)?c.words.map(x=>String(x).trim().slice(0,30)).filter(Boolean).slice(0,100):[];r.words=w.length>=5?w:WORDS.slice();sync(r)}break;
       case'd_start':
         if(r.host==s.dn&&r.st=='lobby'&&r.pl.length>=2){r.turns=0;turn(r)}
         break;
